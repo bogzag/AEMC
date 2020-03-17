@@ -5,13 +5,13 @@
 #define LCD_DATA PORTD
 #define	LCD_STROBE()	((LCD_EN = 1), delay_LCD(1), (LCD_EN=0))
 
-char GRADE = 0xDF; 		//codul ASCII pentru simbolul "°" (grade)
-char MICRO = 0xE4; 		//codul ASCII pentru simbolul "µ" (micro)
+char GRADE = 0xDF; 		//codul ASCII pentru simbolul "Â°" (grade)
+char MICRO = 0xE4; 		//codul ASCII pentru simbolul "Âµ" (micro)
 char ALPHA = 0xE0; 		//codul ASCII pentru simbolul "a" (alfa)
-char BETA = 0xE2; 		//codul ASCII pentru simbolul "ß" (beta)
+char BETA = 0xE2; 		//codul ASCII pentru simbolul "ÃŸ" (beta)
 char EPSILON = 0xE3; 	//codul ASCII pentru simbolul "e" (epsilon)
 char THETA = 0xF2; 		//codul ASCII pentru simbolul "? " (theta)
-char MIU = 0xE4; 		//codul ASCII pentru simbolul "µ" (miu)
+char MIU = 0xE4; 		//codul ASCII pentru simbolul "Âµ" (miu)
 char OMEGA = 0xF4; 		//codul ASCII pentru simbolul "O" (omega)
 char SIGMAm = 0xE5; 	//codul ASCII pentru simbolul "s" (sigma mic)
 char RO = 0xE6; 		//codul ASCII pentru simbolul "?" (ro)
@@ -34,7 +34,7 @@ char mL4[8]={0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F}; //caracter "||||"
 unsigned char a1, a2, i1, s1, t1, L1, L2, L3, L4; 	//denumirile acestor variabile se aleg
 													//pentru a descrie caracterul diacritic sau grafic definit de
 													//utilizator in cazul de fata este vorba de diacriticile "a~", "a^", "i^",
-													//"s,","t," si de simbolurile grafice" |"," ||"," ||",“ |||";
+													//"s,","t," si de simbolurile grafice" |"," ||"," ||",â€œ |||";
 void init_LCD(void);
 void lcd_write(unsigned char c);
 void lcd_clear(void);
