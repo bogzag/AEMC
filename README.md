@@ -5,6 +5,8 @@ Please upload your work in the correct section and add comments to avoid confusi
 
 Mention urgent tasks here and mark them with :exclamation:
 
+Mark wrong info like this  ~~This info wrong my man~~
+
 ### Team members:sleeping:
 
 @bogzag
