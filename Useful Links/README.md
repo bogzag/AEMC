@@ -1,4 +1,4 @@
-# Useful Links for the project:information_desk_person:
+# Useful Links for the project:paperclip:
 
 Please mention if the resource is for a component or a tutorial, so we avoid wasting time wjile looking for info
 
