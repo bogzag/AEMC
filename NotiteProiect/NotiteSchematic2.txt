@@ -1,0 +1,73 @@
+*Run Simulation
+*We should create a simulation to see if all sensors
+*A student per function
+*Sa vedem care sunt valorile de rezistenta corespunzatoare starii de intuneric si lumina
+max 5 v la luminanta maxima
+nu trebie sa se satureze rezistenta R4 rezistenta mare
+*Buzzer daca este functional la un curent de 0.5 miliamperi R6-un tranzistor cotr din microcontroler si tranzistorul sa aiba un buzzer in colector
+*Putem incepe sa cream rutine soft
+*Layoutul pt mufa de alimentare schimbat
+*C-se opune variatilor rapide de tensiune
+	-C2 : R4+fotorezis= divizor rezistiv
+	-filtre blala frecventa de taiere 10 hz
+	-o variatie lenta a luminii
+	-o citire? a senzorului de 10 ori pe secunda
+	-umbrele care apar temporar sa nu fie sesizate
+	-putem filtra valorile din soft
+	-LE TRATAM CA UN FILTRU RC CU FRECVENTA DE TAIERE FOARTE JOASA
+	-CU CAT F DE TAIERE E MAI MICA, SENSIBILITATEA SCADE FOARTE MULT
+
+*impartiti task urile
+*cineva layout
+*cineva soft
+*cineva de simulare
+*apoi hardware
+
+daca e bipolar rez in baza si in colector
+daca e mos nu punem nimic
+
+*****De aici notite ciordite  de la celelalte scheme****
+Catod la masa-la LCD
+Anod-R100k-VDD
+Tranzistor MOS 2N2222
+Alegem fotorezistor si apoi calculam rezistenta de pulldown
+FILTRE RC CA SA NE APARAM DE PARAZITI IN MORTII EI DE TREABA
+rezistenta la UA741 nu mai stiu unde
+I2C-REZISTENTE DE 10K PULLUP
+
+
+
+tensiunea pe intrarea pozitiva-amplificare pozitiva-amplificare
+butoanele sunt conectate gresit
+lm35 e ok
+rtc e ok
+lcd alimentare de background
+FILTRE RC LA TOT POPORUUUUL
+
+
+butoanele gresit-condensatoare de 100nano in paralel cu butoanele
+rezistentele recalculate
+rezistenta in baza ca e bipolar la buzzer-R3 prea mare ar trebui sa fie de 100ohmi
+lm35 folosit
+LCD contrast E OK ACI
+CREATI LAYOUT LA MUFA DE ALIMENTARE DACA NU E
+
+Puntea Wiston are o diferenta de potential care trebuienampl
+pornim calculul de la senzor de umiditate
+Nu e corecta puntea wiston
+nici senzorul
+CONDENSATOARE IN PARALEL CU BUTOANELE
+RTC REZISTENTE DE PULLUP
+IN LAYOUT NUMELE STUDENTILOOOOOOR
+
+
+eMITOR LA GROUND, BUZZER IN COLECT
+Rezistor in serie cu buzzer
+
+Sa lucram doar pe partea de BOTTOM A PCB ului
+Nume PreNUME PE pcb
+Nu folositi fire subtiri, minim 0.5 milimetrii grosimea firelor de conectare
+
+
+
+
