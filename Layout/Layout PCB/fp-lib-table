@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name footprints)(type KiCad)(uri ${PIC16F877}/KiCAD/2020-03-21_17-05-05/footprints.pretty)(options "")(descr ""))
+)
