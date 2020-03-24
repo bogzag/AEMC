@@ -1,4 +1,3 @@
-/*Template Proiect AEMC - ETTI Iasi*/
 #include <xc.h>
 
 
@@ -35,24 +34,22 @@ void main(void)
 	init_LCD();
 	lcd_clear();
 	lcd_goto(0x80);
-	lcd_puts(tempanalog);
+	/*lcd_puts(tempanalog);
 	lcd_goto(0xC0);
+	*/
+	
+	int temp;
 	
 	
-	 
-	 
-   
-	 
-	 
-	while (1)
-	{
+		__delay_ms(1000);
+		temp=Citeste_ADC(5);
 		
-	   if(RC2==0)// buton incrementare e apasat;
-	   {
-		   
-		   
-	}
- }
+		
+			c1=(temp/100)%10;
+			c2=(temp/10)%10;
+			c3=temp%10;
+			
+ 
  }
  void init_uC (void) 
 { 	
@@ -88,12 +85,13 @@ unsigned char Citeste_ADC(unsigned char canal)
     return ADRESH;//returnez valoarea convertita
     
 }
-float conversiontemp(float volt,int adctemp)
+float conversiontemp(float volt)
 {
-	adctemp=Citeste_ADC(5);//citire valoare ADC pt LM35
+	unsigned adctemp=Citeste_ADC(5);//citire valoare ADC pt senzori
 	volt=adctemp*4.883;
 	return volt;
 }
+
 
 
 void interrupt etti(void)	// ajung aici la fiecare 78*128us=~10ms
