@@ -1,8 +1,9 @@
 
 /*Template Proiect AEMC - ETTI Iasi*/
 #include <xc.h>
-#include "lcd.h"
-#include <16F887.h>
+
+
+
 
 
 __PROG_CONFIG (1,0x20D4); 	// config. uC 
@@ -22,13 +23,16 @@ char *logo2 = (char *) "linia_2";
 char *logo3 = (char *) "linia_3";
 char *logo4 = (char *) "linia_4";
 char *tempanalog = (char *) "Temperatura LM35";
+char *temphumid = (char *) "Temperatura si umiditate DHT11:";
+char *humidanalog = (char *) "Umiditate HR";
+char *luminozitate = (char*) "luminozitate";
 char message1[] = "Temp 00.0 C  ";
 char message2[] = "Humidity 00.0 %  ";
 unsigned int Temp_byte1, Temp_byte2, Humidity_byte1, Humidity_byte2, CheckSum, Check;
 ////FUNCTION PROTOTYPE/////
 void init_uC(void); 
 void StartSignalDHT11(void);
-void CheckResponseDHT11(void);
+unsigned int CheckResponseDHT11(void);
 unsigned int ReadDataDHT11(void);
 //void interrupt etti(void); 	// functie de intreruperi globala ptr. TOATE intreruperile de pe un 
 void init_LCD(void);
@@ -100,15 +104,15 @@ void main(void)
  //////////////////////////////////////////////////////
 unsigned char Citeste_ADC(unsigned char canal)
 {
-    ADCON0 = 0x00; //curat adcon0
-    ADCON0 = (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
-    ADON = 1; //seteaza bitul ADON din interiorul ADC sa fie ON
+	if(canal > 13)//an13 e ultimul pin analog
+		return 0;
+    ADCON0 &= 0xC3; //curat adcon0, setez adon on
+    ADCON0 |= (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
     
-    __delay_ms(2000);//delay pt AD sa citeasca corect
+    __delay_ms(100);//delay pt AD sa citeasca corect
         
     GO_nDONE = 1;//porneste conversia
     while(GO_nDONE);//pauza pana cand A/D termina conversia
-    ADON = 0;//inchidem A/D
     return ADRESH;//returnez valoarea convertita
     
 }
@@ -134,35 +138,44 @@ void __interrupt() etti(void)
 ///DHT11 FUNCTIONS-temperature and humidity sensor///
 /////////////////////////////////////////////////
 //DHT11 will not give any response without the start signal and will remain in low power consumption mode or in sleep mode
-void StartSignalDHT11(void){
- TRISB.B0 = 0; //Configure RB0 as output
- PORTB.B0 = 0; //RD0 sends 0 to the sensor
- __delay_ms(18);
- PORTB.B0 = 1; //RB0 sends 1 to the sensor
- __delay_us(30);
- TRISD.B0 = 1; //Configure RB0 as input
+void StartSignalDHT11(void)
+{
+	 TRISB.B0 = 0; //Configure RB0 as output
+	 PORTB.B0 = 0; //RD0 sends 0 to the sensor
+	 __delay_ms(18);
+	 PORTB.B0 = 1; //RB0 sends 1 to the sensor
+	 __delay_us(30);
+	 TRISD.B0 = 1; //Configure RB0 as input
  }
  //////////////////////////////
 //shortly we check if the dht11 is awake
- void CheckResponseDHT11(){
- Check = 0;
- __delay_us(40);
- if (PORTB.B0 == 0){
- __delay_us(80);
- if (PORTB.B0 == 1)
-     Check = 1; __delay_us(40);}
+unsigned int CheckResponseDHT11()
+ {
+	 Check = 0;
+	 __delay_us(40);
+	 if (PORTB.B0 == 0)
+		 {
+			 __delay_us(80);
+			 if (PORTB.B0 == 1)
+				 Check = 1; __delay_us(40);
+		 }
+	return Check;
  }
  //////////////////////////////
- unsigned int ReadDataDHT11(void){
- unsigned int i, j;
- for(j = 0; j < 8; j++){
- while(!PORTB.B0); //Wait until PORTB.B0 goes HIGH
- __delay_us(30);
- if(PORTB.B0 == 0)
- i&= ~(1<<(7 - j)); //Clear bit (7-j)
- else {i|= (1 << (7 - j)); //Set bit (7-j)
- while(PORTB.B0);} //Wait until PORTB.B0 goes LOW
- }
- return i;//i=data
+ unsigned int ReadDataDHT11(void)
+ {
+	 unsigned int i, j;
+	 for(j = 0; j < 8; j++)
+		 {
+			 while(!PORTB.B0); //Wait until PORTB.B0 goes HIGH
+			 __delay_us(30);
+			 if(PORTB.B0 == 0)
+			 i&= ~(1<<(7 - j)); //Clear bit (7-j)
+			 else {
+					i|=(1 << (7 - j)); //Set bit (7-j)
+					while(PORTB.B0);
+				 } //Wait until PORTB.B0 goes LOW
+		 }
+	 return i;//i=data
  }
  //////////////////////////////
