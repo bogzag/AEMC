@@ -1,0 +1,138 @@
+/*Template Proiect AEMC - ETTI Iasi*/
+#include <xc.h>
+
+
+
+__PROG_CONFIG(1,0x20D4); 	// config. uC 
+__PROG_CONFIG(2,0x0000); 	// config. uC 
+#define _XTAL_FREQ 8000000
+#define LED1 RB0 
+#define LED2 RB1
+#define butoninc RC2
+#define butonalarm RC1
+#define butontimp RC0
+
+
+char *logo  = (char *) "AEMC - proiect LCD";
+char *logo1 = (char *) "linia_1";
+char *logo2 = (char *) "linia_2";
+char *logo3 = (char *) "linia_3";
+char *logo4 = (char *) "linia_4";
+char *tempanalog = (char *) " Temperatura LM35";
+
+void init_uC(void); 
+void interrupt etti(void); 	// functie de intreruperi globala ptr. TOATE intreruperile de pe un 
+void init_LCD(void);
+void lcd_goto(unsigned char pos);
+void lcd_puts(char * s);
+void lcd_putch(char c);
+void lcd_clear(void);
+
+//void afisare_diacritice(unsigned char diacritic_afisat, unsigned char linia);
+unsigned char Citeste_ADC(unsigned char canal);
+//float conversietemp(float volt, int adctemp);
+
+void main(void)
+ { 
+	int adc,temp1,c1,c2,c3,c4;
+	float volt,temp;
+	init_uC();
+	init_LCD();
+	 
+	
+	 
+	 while(1)
+	 {
+	
+		 adc=Citeste_ADC(5);
+		 volt=adc*4.883;
+		 temp=volt/10.0;
+		 temp1=temp*100;
+		 c1=(temp1/1000)%10;
+		 c2=(temp1/100)%10;
+		 c3=(temp1/10)%10;
+		 c4=(temp1/1)%10;
+		 lcd_clear();
+		 lcd_goto(0x80);
+		 lcd_puts(tempanalog);
+		 lcd_goto(0xC0);
+		 lcd_putch(c1+'0');
+		 lcd_putch(c2+'0');
+		 lcd_puts(".");
+		 lcd_putch(c3+'0');
+		lcd_putch(c4+'0');
+		lcd_putch(0xDF);
+		 lcd_puts("C");
+		 __delay_ms(3000);
+	 
+	 }
+	 
+	
+	
+ 
+ 
+ }
+ void init_uC (void) 
+{ 	
+	OSCCON 	= 0x71;			// setez Osc. intern uC de 8MHz // pag. 64
+	ADCON1 = 0x60;// A/D Clock Fosc/8
+    TRISA = 0xC1;//RA7,RA6,RA0 intrare
+    TRISB = 0x33;//RB5,RB0 intrare
+    TRISC = 0x07;//RB3,2,1 intrare(butoane)
+    TRISD = 0x00;
+    TRISE = 0x01;
+    ANSEL = 0x21;
+    ANSELH = 0x30;
+	PORTB = 0b00000000;	// initializez PORTB cu valori de 0 logic
+	OPTION_REG = 0b00000111;// Frecv. intrare T0 = Frecv. Osc./4 (=8MHz/4) = 2MHz
+							// prescaler=256 => Frecv. T0 = 2MHz/256 = KHz (sau T=128us)
+	TMR0IF 	= 0;			// 
+	TMR0 	= 178;	  		// porneste numararea de la valoarea 178; pana la maxim (255) 
+	TMR0IE 	= 1;    		// activez intreruperea ptr. T0
+	GIE 	= 1;       		// activez Global intreruperile
+	
+} 
+unsigned char Citeste_ADC(unsigned char canal)
+{
+    if(canal > 13)//an13 e ultimul pin analog
+		return 0;
+    ADCON0 &= 0xC3; //curat adcon0, setez adon on
+    ADCON0 |= (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
+    
+    __delay_ms(100);//delay pt AD sa citeasca corect
+        
+    
+    while(GO_nDONE);//pauza pana cand A/D termina conversia
+    return ADRESH;//returnez valoarea convertita
+    
+}
+
+/*float conversiontemp(float volt,int adctemp)
+{
+	adctemp=Citeste_ADC(5)//citire valoare ADC pt LM35
+	volt = adctemp*4.883;//5000mv/1023
+	return volt;
+}*/
+
+/*void lcd_putc( char c) 
+{
+   switch (c) {
+     case '\f'   : lcd_send_byte(0,1);
+                   delay_ms(2);
+                                           break;
+     case '\n'   : lcd_gotoxy(1,2);        break;
+     case '\b'   : lcd_send_byte(0,0x10);  break;
+     default     : lcd_send_byte(1,c);     break;
+   }
+}*/
+
+void interrupt etti(void)	// ajung aici la fiecare 78*128us=~10ms
+{       
+	if(TMR0IF)				// daca flagul TMR0IF=1
+	{
+		 TMR0IF = 0;   		// obligatoriu - sterg flagul Timerului care a generat intreruperea
+		 TMR0 = 178;  		// 
+		 LED2 = !LED2; 		// 
+	}
+}
+
