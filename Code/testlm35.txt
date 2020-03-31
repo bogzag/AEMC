@@ -29,7 +29,7 @@ void lcd_putch(char c);
 void lcd_clear(void);
 
 //void afisare_diacritice(unsigned char diacritic_afisat, unsigned char linia);
-unsigned char Citeste_ADC(unsigned char canal);
+unsigned int Citeste_ADC(unsigned char canal);
 //float conversietemp(float volt, int adctemp);
 
 void main(void)
@@ -45,7 +45,7 @@ void main(void)
 	 {
 	
 		 adc=Citeste_ADC(5);
-		 volt=adc*4.883;
+		 volt=adc*4.882;
 		 temp=volt/10.0;
 		 temp1=temp*100;
 		 c1=(temp1/1000)%10;
@@ -63,7 +63,7 @@ void main(void)
 		lcd_putch(c4+'0');
 		lcd_putch(0xDF);
 		 lcd_puts("C");
-		 __delay_ms(3000);
+		 __delay_ms(100);
 	 
 	 }
 	 
@@ -74,16 +74,16 @@ void main(void)
  }
  void init_uC (void) 
 { 	
-	 ADCON0 = 0b01000001; // A/D Clock Fosc/8
-	/*OSCCON 	= 0x71;			// setez Osc. intern uC de 8MHz // pag. 64*/
-	ADCON1 = 0b10100000;//
-  /*  TRISA = 0xC1;//RA7,RA6,RA0 intrare
-    TRISB = 0x33;//RB5,RB0 intrare
-    TRISC = 0x07;//RB3,2,1 intrare(butoane)
+	OSCCON 	= 0x71;			// setez Osc. intern uC de 8MHz // pag. 64
+	ADCON0 = 0b10000001;
+	ADCON1 = 0x80;
+    TRISA = 0x00;//RA7,RA6,RA0 intrare
+    TRISB = 0x00;//RB5,RB0 intrare
+    TRISC = 0x00;//RB3,2,1 intrare(butoane)
     TRISD = 0x00;
     TRISE = 0x01;
-    ANSEL = 0x21;
-    ANSELH = 0x30;
+    ANSEL = 0b00100000;
+    ANSELH = 0x00;
 	PORTB = 0b00000000;	// initializez PORTB cu valori de 0 logic
 	OPTION_REG = 0b00000111;// Frecv. intrare T0 = Frecv. Osc./4 (=8MHz/4) = 2MHz
 							// prescaler=256 => Frecv. T0 = 2MHz/256 = KHz (sau T=128us)
@@ -91,20 +91,20 @@ void main(void)
 	TMR0 	= 178;	  		// porneste numararea de la valoarea 178; pana la maxim (255) 
 	TMR0IE 	= 1;    		// activez intreruperea ptr. T0
 	GIE 	= 1;       		// activez Global intreruperile
-	*/
+	
 } 
-unsigned char Citeste_ADC(unsigned char canal)
+unsigned int Citeste_ADC(unsigned char canal)
 {
-    if(canal > 13)//an13 e ultimul pin analog
+   if(canal > 13)//an13 e ultimul pin analog
 		return 0;
     ADCON0 &= 0xC3; //curat adcon0, setez adon on
     ADCON0 |= (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
     
     __delay_ms(100);//delay pt AD sa citeasca corect
         
-    GO_nDONE = 1; 
+    GO_nDONE = 1;
     while(GO_nDONE);//pauza pana cand A/D termina conversia
-    return((ADRESH<<8)+ADRESL);//returnez valoarea convertita
+    return ((ADRESH<<8)+ADRESL);//returnez valoarea convertita
     
 }
 
