@@ -74,9 +74,10 @@ void main(void)
  }
  void init_uC (void) 
 { 	
-	OSCCON 	= 0x71;			// setez Osc. intern uC de 8MHz // pag. 64
-	ADCON1 = 0x60;// A/D Clock Fosc/8
-    TRISA = 0xC1;//RA7,RA6,RA0 intrare
+	 ADCON0 = 0b01000001; // A/D Clock Fosc/8
+	/*OSCCON 	= 0x71;			// setez Osc. intern uC de 8MHz // pag. 64*/
+	ADCON1 = 0b10100000;//
+  /*  TRISA = 0xC1;//RA7,RA6,RA0 intrare
     TRISB = 0x33;//RB5,RB0 intrare
     TRISC = 0x07;//RB3,2,1 intrare(butoane)
     TRISD = 0x00;
@@ -90,7 +91,7 @@ void main(void)
 	TMR0 	= 178;	  		// porneste numararea de la valoarea 178; pana la maxim (255) 
 	TMR0IE 	= 1;    		// activez intreruperea ptr. T0
 	GIE 	= 1;       		// activez Global intreruperile
-	
+	*/
 } 
 unsigned char Citeste_ADC(unsigned char canal)
 {
@@ -101,9 +102,9 @@ unsigned char Citeste_ADC(unsigned char canal)
     
     __delay_ms(100);//delay pt AD sa citeasca corect
         
-    
+    GO_nDONE = 1; 
     while(GO_nDONE);//pauza pana cand A/D termina conversia
-    return ADRESH;//returnez valoarea convertita
+    return((ADRESH<<8)+ADRESL);//returnez valoarea convertita
     
 }
 
