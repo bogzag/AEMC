@@ -1,0 +1,280 @@
+/*Template Proiect AEMC - ETTI Iasi*/
+#include <xc.h>
+#include<math.h>
+
+
+__PROG_CONFIG(1,0x20D4); 	// config. uC 
+__PROG_CONFIG(2,0x0000); 	// config. uC 
+#define _XTAL_FREQ 8000000
+#define LED1 RB0 
+#define LED2 RB1
+#define butoninc RC2
+#define butonalarm RC1
+#define butontimp RC0
+#define datadht RE1 
+
+
+char *logo  = (char *) "AEMC - proiect LCD";
+char *logo1 = (char *) "linia_1";
+char *logo2 = (char *) "linia_2";
+char *logo3 = (char *) "linia_3";
+char *logo4 = (char *) "linia_4";
+char *tempanalog = (char *) " Temperatura LM35";
+char *luminanalog = (char *) "luminozitate";
+char *tempdht = (char *) "temp dht";
+char *umiddht = (char *) "umid dht";
+
+
+
+void init_uC(void); 
+void interrupt etti(void); 	// functie de intreruperi globala ptr. TOATE intreruperile de pe un 
+void init_LCD(void);
+void lcd_goto(unsigned char pos);
+void lcd_puts(char * s);
+void lcd_putch(char c);
+void lcd_clear(void);
+void lm35(void);
+void luminozitate(void);
+void initializare_dht(void);
+void raspuns_dht(void);
+unsigned char citire_dht(void);
+void afisare_dht(void);
+//void afisare_diacritice(unsigned char diacritic_afisat, unsigned char linia);
+unsigned int Citeste_ADC(unsigned char canal);
+//float conversietemp(float volt, int adctemp);
+
+void main(void)
+ { 
+	
+	init_uC();
+	init_LCD();
+	 
+	
+	 
+	 while(1)
+	 {
+		
+		
+	lm35();
+	 luminozitate();
+		 
+    //afisare_dht();
+    
+ }
+}
+	 
+	 
+	 
+	
+	
+ 
+ 
+ 
+ void init_uC (void) 
+{ 	
+	OSCCON 	= 0x71;			// setez Osc. intern uC de 8MHz // pag. 64
+	ADCON0 = 0b10000001;
+	ADCON1 = 0x80;
+    TRISA = 0x01;//RA7,RA6,RA0 intrare
+    TRISB = 0x00;//RB5,RB0 intrare
+    TRISC = 0x00;//RB3,2,1 intrare(butoane)
+    TRISD = 0x00;
+    TRISE = 0x01;
+    ANSEL = 0b00100001;
+    ANSELH = 0x00;
+	PORTB = 0b00000000;	// initializez PORTB cu valori de 0 logic
+	OPTION_REG = 0b00000111;// Frecv. intrare T0 = Frecv. Osc./4 (=8MHz/4) = 2MHz
+							// prescaler=256 => Frecv. T0 = 2MHz/256 = KHz (sau T=128us)
+	TMR0IF 	= 0;			// 
+	TMR0 	= 178;	  		// porneste numararea de la valoarea 178; pana la maxim (255) 
+	TMR0IE 	= 1;    		// activez intreruperea ptr. T0
+	GIE 	= 1;       		// activez Global intreruperile
+	
+} 
+unsigned int Citeste_ADC(unsigned char canal)
+{
+   if(canal > 13)//an13 e ultimul pin analog
+		return 0;
+    ADCON0 &= 0xC3; //curat adcon0, setez adon on
+    ADCON0 |= (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
+    
+    __delay_ms(100);//delay pt AD sa citeasca corect
+        
+    GO_nDONE = 1;
+    while(GO_nDONE);//pauza pana cand A/D termina conversia
+    return ((ADRESH<<8)+ADRESL);//returnez valoarea convertita
+    
+}
+
+void lm35(void)
+{
+	int adc,temp1,c1,c2,c3,c4;
+	float volt,temp;
+	adc=Citeste_ADC(5);
+		 volt=adc*4.882;
+		 temp=volt/10.0;
+		 temp1=temp*100;
+		 c1=(temp1/1000)%10;
+		 c2=(temp1/100)%10;
+		 c3=(temp1/10)%10;
+		 c4=(temp1/1)%10;
+		 
+		 __delay_ms(2);
+		 lcd_goto(0x80);
+		 __delay_ms(2);
+		 lcd_puts(tempanalog);
+		 __delay_ms(2);
+		 lcd_goto(0xC0);
+		  __delay_ms(2);
+		 lcd_putch(c1+'0');
+		  __delay_ms(2);
+		 lcd_putch(c2+'0');
+		  __delay_ms(2);
+		 lcd_puts(".");
+		  __delay_ms(2);
+		 lcd_putch(c3+'0');
+		  __delay_ms(2);;
+		lcd_putch(c4+'0');
+		 __delay_ms(2);
+		lcd_putch(0xDF);
+		 __delay_ms(2);
+		 lcd_puts("C");
+}
+void luminozitate(void)
+{
+		 int adc,c1,c2,c3,c4,intensitate1;
+		 float lv,lum,ressenz,intensitate;
+		 adc=Citeste_ADC(0);
+		 lv=adc*4.882;
+		 ressenz=pow(10,7.098)*pow(lv,(-1.405));
+		 intensitate=500.0/ressenz;
+		 intensitate1=intensitate*100;
+		 c1=(intensitate1/1000)%10;
+		 c2=(intensitate1/100)%10;
+		 c3=(intensitate1/10)%10;
+		 c4=(+intensitate1/1)%10;
+		  __delay_ms(2);
+		 lcd_goto(0x94);
+		 __delay_ms(2);
+		 lcd_puts(luminanalog);
+		 __delay_ms(2);
+		 lcd_goto(0xD4);
+		  __delay_ms(2);
+		 lcd_putch(c1+'0');
+		  __delay_ms(2);
+		 lcd_putch(c2+'0');
+		  __delay_ms(2);
+		 lcd_puts(".");
+		  __delay_ms(2);
+		 lcd_putch(c3+'0');
+		  __delay_ms(2);
+		lcd_putch(c4+'0');
+}
+
+
+void initializare_dht(void)
+{
+		 TRISE=0x00;
+		 datadht = 0;
+		 __delay_ms(20);
+		 TRISE=0x02;
+		 
+		 __delay_ms(20);
+		 RE1=1;
+}
+
+
+void raspuns_dht(void)
+{
+	unsigned char verifbit = 0;
+	__delay_ms(40);
+	if(datadht == 0)
+	{
+		__delay_ms(10);
+		if(datadht == 1)
+		{
+			verifbit = 1;
+		}
+			__delay_ms(6);
+		}
+		
+}
+unsigned char citire_dht(void)
+ { 
+	 char info, i;
+			 for(i = 0; i < 8; i++)
+			 {
+				 while(!datadht);
+				 __delay_ms(5);
+				 if(datadht == 0)
+				 {
+					 info &= ~(1<<(7-i));//curata bit
+				 }
+				 else
+				 {
+					 info |= (1<<(7-i));//seteaza bit
+					 while(datadht);
+					 }
+				 }
+				 return info;
+}
+
+
+void afisare_dht(void)
+{
+	unsigned char datadht, tempbyte1, tempbyte2, umidbyte1, umidbyte2;
+	unsigned char tempdht, rh, suma;
+    initializare_dht();
+    raspuns_dht();
+    if (datadht == 1)
+		{
+			umidbyte1 = citire_dht();
+			umidbyte2 = citire_dht();
+			tempbyte1 = citire_dht();
+			tempbyte2 = citire_dht();
+			suma = citire_dht();
+			if (suma == ((umidbyte1+umidbyte2+tempbyte1+tempbyte2) & 0XFF))
+				{
+					tempdht = tempbyte1;
+					rh = umidbyte1;                        
+					lcd_goto(0x80);                   
+					lcd_puts(tempdht);
+					lcd_putch('0' + ((tempdht / 10) % 10));
+					lcd_putch('0' +((tempdht % 10)));
+					lcd_putch(0xDF);
+					lcd_puts("C");
+					lcd_goto(0xC0);            
+					lcd_puts(umiddht);
+					lcd_putch('0' + ((rh / 10) % 10));
+					lcd_putch('0' + (rh % 10));
+					lcd_putch("% ");
+				}
+			else{
+					lcd_puts("eroare la suma");
+				}
+		}
+    else {
+			lcd_clear();
+			lcd_goto(0x80);
+			lcd_puts("eroare");
+			lcd_goto(0xC0);
+			lcd_puts("fara raspuns");
+		}
+    __delay_ms(1000);
+ }
+
+			 
+			 
+	 
+
+
+
+void interrupt etti(void)	// ajung aici la fiecare 78*128us=~10ms
+{       
+	if(TMR0IF)				// daca flagul TMR0IF=1
+	{
+		 TMR0IF = 0;   		// obligatoriu - sterg flagul Timerului care a generat intreruperea
+		 TMR0 = 178;  		// 
+		 LED2 = !LED2; 		// 
+	}
+}
