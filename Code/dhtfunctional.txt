@@ -1,0 +1,450 @@
+/*Template Proiect AEMC - ETTI Iasi*/
+#include <xc.h>
+#include<math.h>
+
+
+__PROG_CONFIG(1,0x20D4); 	// config. uC 
+__PROG_CONFIG(2,0x0000); 	// config. uC 
+#define _XTAL_FREQ 8000000
+#define LED2 RB1
+#define butoninc RC2
+#define butonalarm RC1
+#define butontimp RC0
+#define dhtpin RE1
+#define dhtpin_dir  TRISE1
+
+
+char *logo  = (char *) "AEMC - proiect LCD";
+char *logo1 = (char *) "linia_1";
+char *logo2 = (char *) "linia_2";
+char *logo3 = (char *) "linia_3";
+char *logo4 = (char *) "linia_4";
+char *tempanalog = (char *) " Temperatura LM35";
+char *luminanalog = (char *) "luminozitate";
+char *pag1 = (char *) "pagina 1";
+char *pag2 = (char *) "pagina 2";
+char *pag3 = (char *) "pagina 3";
+char *test = (char*) "test1";
+
+
+
+void init_uC(void); 
+void interrupt etti(void); 	// functie de intreruperi globala ptr. TOATE intreruperile de pe un 
+void init_LCD(void);
+void lcd_goto(unsigned char pos);
+void lcd_puts(char * s);
+void lcd_putch(char c);
+void lcd_clear(void);
+void lm35(void);
+void luminozitate(void);
+void initializare_dht(void);
+unsigned short raspuns_dht(void);
+unsigned short citire_dht(unsigned short *);
+void afisare_dht(void);
+void afisarepag(void);
+//void afisare_diacritice(unsigned char diacritic_afisat, unsigned char linia);
+unsigned int Citeste_ADC(unsigned char canal);
+char temperatura[]="temperatura = 00.0C";
+char umiditate[]="umiditate = 00.0%";
+unsigned short tempbyte1, tempbyte2, umidbyte1, umidbyte2, suma;
+
+void main(void)
+ { 
+	
+	init_uC();
+	init_LCD();
+	while(1)
+	 {
+	    initializare_dht();                
+	    if(raspuns_dht()) 
+	       {         // Check if there is a response from sensor (If OK start reding humidity and temperature data)
+		  // Read (and save) data from the DHT11 sensor and check time out errors
+		  if(citire_dht(&umidbyte1) || citire_dht(&umidbyte2) || citire_dht(&tempbyte1) || citire_dht(&tempbyte2) || citire_dht(&suma)) 
+		     {
+		     lcd_clear();
+		     lcd_goto(0x80);
+		     lcd_puts((char*) "pauza");      
+			                       
+		     }
+		else {                                               // If there is no time out error
+			if(suma == ((umidbyte1 + umidbyte2 + tempbyte1 + tempbyte2) & 0xFF))
+			   {
+			      // If there is no checksum error
+			      temperatura[14]  = (tempbyte1/10  + 48);
+			      temperatura[15]  = (tempbyte1%10  + 48);
+			      temperatura[17] = (tempbyte2/10  + 48);
+			      umiditate[12]     = (umidbyte1/10 + 48);
+			      umiditate[13]     = (umidbyte1%10 + 48);
+			      umiditate[15]    = (umidbyte2/10 + 48);
+			      temperatura[18] = 223;                      
+			      lcd_goto(0x80);
+			      lcd_puts(temperatura);
+			      lcd_goto(0xC0);
+			      lcd_puts(umiditate);
+         
+			  }
+        
+			else {
+			      lcd_clear();
+			      lcd_goto(0x80);
+			      lcd_puts((char*) "verifica suma");
+          
+			      }
+		     }
+		}
+  
+	    else {
+		     lcd_goto(0x80);
+		     lcd_puts((char*) "Niciun");
+		     lcd_goto(0xC0);
+		     lcd_puts((char*) "raspuns");
+   
+		  }
+     TMR1ON = 0;                        // Disable Timer1 module
+    __delay_ms(1000);                        // Wait 1 second
+    //afisarepag();
+	    //afisare_dht();
+ 
+      }
+}
+	    
+void init_uC (void) 
+{ 	
+	OSCCON 	= 0x70;	  // setez Osc. intern uC de 8MHz // pag. 64
+	ANSELH = 0x00;
+	ADCON0 = 0b10000001;
+	ADCON1 = 0x80;
+	T1CON=0x10;
+	TMR1H=0;
+	TMR1L=0;
+	TRISA = 0x01;//RA7,RA6,RA0 intrare
+	TRISB = 0x00;//RB5,RB0 intrare
+	TRISC = 0x01;//RB3,2,1 intrare(butoane)
+	TRISD = 0x00;
+	TRISE = 0b00000011;
+	ANSEL = 0b00000001;
+	ANSELH = 0x00;
+	PORTB = 0b00000000;	// initializez PORTB cu valori de 0 logic
+	OPTION_REG = 0b00000111;// Frecv. intrare T0 = Frecv. Osc./4 (=8MHz/4) = 2MHz
+							// prescaler=256 => Frecv. T0 = 2MHz/256 = KHz (sau T=128us)
+	TMR0IF 	= 0;			// 
+	TMR0 	= 178;	  		// porneste numararea de la valoarea 178; pana la maxim (255) 
+	TMR0IE 	= 1;    		// activez intreruperea ptr. T0
+	GIE 	= 1;       		// activez Global intreruperile
+	
+	
+} 
+unsigned int Citeste_ADC(unsigned char canal)
+{
+   if(canal > 13)//an13 e ultimul pin analog
+		return 0;
+    ADCON0 &= 0xC3; //curat adcon0, setez adon on
+    ADCON0 |= (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
+    
+    __delay_ms(100);//delay pt AD sa citeasca corect
+        
+    GO_nDONE = 1;
+    while(GO_nDONE);//pauza pana cand A/D termina conversia
+    return ((ADRESH<<8)+ADRESL);//returnez valoarea convertita
+    
+}
+
+void lm35(void)
+{
+	int adc,temp1,c1,c2,c3,c4;
+	float volt,temp;
+	adc=Citeste_ADC(5);
+		 volt=adc*4.882;
+		 temp=volt/10.0;
+		 temp1=temp*100;
+		 c1=(temp1/1000)%10;
+		 c2=(temp1/100)%10;
+		 c3=(temp1/10)%10;
+		 c4=(temp1/1)%10;
+		 
+		 __delay_ms(2);
+		 lcd_goto(0xC1);
+		 __delay_ms(2);
+		lcd_puts(tempanalog);
+		 __delay_ms(2);
+		 lcd_goto(0x99);
+		  __delay_ms(2);
+		 lcd_putch(c1+'0');
+		  __delay_ms(2);
+		 lcd_putch(c2+'0');
+		  __delay_ms(2);
+		 lcd_puts(".");
+		  __delay_ms(2);
+		 lcd_putch(c3+'0');
+		  __delay_ms(2);;
+		lcd_putch(c4+'0');
+		 __delay_ms(2);
+		lcd_putch(0xDF);
+		 __delay_ms(2);
+		 lcd_puts("C");
+}
+void luminozitate(void)
+{
+		 int adc,c1,c2,c3,c4,intensitate1;
+		 float lv,lum,ressenz,intensitate;
+		 adc=Citeste_ADC(0);
+		 lv=adc*4.882;
+		 ressenz=pow(10,7.098)*pow(lv,(-1.405));
+		 intensitate=500.0/ressenz;
+		 intensitate1=intensitate*100;
+		 c1=(intensitate1/1000)%10;
+		 c2=(intensitate1/100)%10;
+		 c3=(intensitate1/10)%10;
+		 c4=(intensitate1/1)%10;
+		  __delay_ms(2);
+		 lcd_goto(0xC4);
+		 __delay_ms(2);
+		 lcd_puts(luminanalog);
+		 __delay_ms(2);
+		 lcd_goto(0x98);
+		  __delay_ms(2);
+		 lcd_putch(c1+'0');
+		  __delay_ms(2);
+		 lcd_putch(c2+'0');
+		  __delay_ms(2);
+		 lcd_puts(".");
+		  __delay_ms(2);
+		 lcd_putch(c3+'0');
+		  __delay_ms(2);
+		lcd_putch(c4+'0');
+}
+
+
+void initializare_dht(void)
+{
+		 dhtpin_dir = 0;
+		 dhtpin = 0;
+		 __delay_ms(25);
+		 dhtpin = 1;
+		 __delay_us(25);
+		 dhtpin_dir = 1;
+		
+}
+
+
+unsigned short raspuns_dht()
+{
+	TMR1H = 0;                                  // Reset Timer1
+	TMR1L = 0;
+	TMR1ON = 1;                             // Enable Timer1 module
+	while(!dhtpin && TMR1L < 100);           // Wait until DHT11_PIN becomes high (cheking of 80µs low time response)
+	if(TMR1L > 99)                              // If response time > 99µS  ==> Response error
+	    return 0;                                 // Return 0 (Device has a problem with response)
+	else {    TMR1H = 0;                        // Reset Timer1
+		  TMR1L = 0;
+		  while(dhtpin && TMR1L < 100);          // Wait until DHT11_PIN becomes low (cheking of 80µs high time response)
+		  if(TMR1L > 99)         // If response time > 99µS  ==> Response error
+		     {
+			return 0;                               // Return 0 (Device has a problem with response)
+		     }
+		  else{
+			return 1;     // Return 1 (response OK)
+			}
+       
+	       }	
+}
+unsigned short citire_dht(unsigned short* dhtdata)
+ { 
+	 short i;
+	 *dhtdata = 0;
+	 
+			 for( int i = 0; i < 8; i++)
+			 {
+				 TMR1H=0;
+				 TMR1L=0;
+				 while(!dhtpin)
+				 {
+				    if(TMR1L > 100)
+				    {
+				       return 1;
+				    }
+				    TMR1H = 0;
+				    TMR1L = 0;
+				 }
+				 while(dhtpin)
+				 if(TMR1L > 100)
+				    if(TMR1L > 100)
+				    {
+				       return 1;
+				 }
+				 if(TMR1L > 50)
+				    *dhtdata |=(1<<(7-i));
+			      }
+				 return 0;
+				 
+} 
+
+
+
+ /*void afisare_dht(void)
+{
+	char temperature[]="temp 00.0C";
+	 char humidity[]="RH = 00.0%";
+	 unsigned short tempbyte1, tempbyte2, umidbyte1, umidbyte2, suma;
+	 initializare_dht();
+	 raspuns_dht();
+      if(raspuns_dht())
+      {
+	 if(citire_dht(&umidbyte1)||citire_dht(&umidbyte2)||citire_dht(&tempbyte1)||citire_dht(&tempbyte2)||(citire_dht(&suma)))
+   
+		{ lcd_goto(0x80);
+		  lcd_puts((char*)"time out");
+		}
+		else
+		{
+			
+			
+			if (suma == ((umidbyte1+umidbyte2+tempbyte1+tempbyte2) & 0xFF))
+				{
+					temperature[7]=tempbyte1/10+48;
+					temperature[8]=tempbyte1%10+48;
+					 temperature[10]=tempbyte2/10+48;
+					 humidity[7]=umidbyte1/10+48;
+					 humidity[8]=umidbyte1%10+48;
+					 humidity[10]=umidbyte2/10+48;
+					 temperature[11]=223;
+					 lcd_goto(0x80);
+					 lcd_puts(temperature);
+					 lcd_goto(0xC0);
+					 lcd_puts(humidity);
+				}
+			else{
+				lcd_goto(0x80);	  
+				 lcd_puts("eroare la suma");
+				}
+			     }
+			  }
+			  else{
+			     lcd_goto(0x80);
+			     lcd_puts((char*) "no response");
+			     lcd_goto(0xC0);
+			     lcd_puts((char*)"from the sensor");
+			  }
+			  TMR1ON=0;
+			  __delay_ms(1000);
+		       }*/
+ 
+/*void afisare_dht(void)
+{
+	 char tempbyte1, tempbyte2, umidbyte1, umidbyte2,temp1,temp2,umid1,umid2;
+	 char tempdht1, rh, suma;
+	 initializare_dht();
+	 raspuns_dht();
+	 umidbyte1 = citire_dht();
+	 umidbyte2 = citire_dht();
+	 tempbyte1 = citire_dht();
+	 tempbyte2 = citire_dht();
+	 suma = citire_dht();
+	 if (suma == ((umidbyte1+umidbyte2+tempbyte1+tempbyte2) & 0xFF))
+			{
+				tempdht1 = tempbyte1;
+				rh = umidbyte1;  
+				  temp1=tempdht1;
+	    
+				 temp1=(temp1 / 10) + '0';
+				 temp2=(temp1 % 10) + '0';
+				 lcd_goto(0x80);                   
+				 lcd_puts(tempdht);
+				 lcd_putch(temp1);
+				 lcd_putch(temp2);
+				 lcd_putch(0xDF);
+				 lcd_putch(0x43);
+				 
+				 umid1=rh;
+				 umid1=(umid1/10)+'0';
+				 umid2=(umid1%10)+'0';
+				 lcd_goto(0xC0);
+				 lcd_puts(umiddht);
+				 lcd_putch(umid1);
+				 lcd_putch(umid2);
+				 lcd_putch(0x25);
+				/*c1=(tempdht/10)%10;
+				c2=(tempdht%10);
+				c3=(rh/10)%10;
+				c4=rh%10;
+				lcd_goto(0x81);                   
+				lcd_puts(tempdht);
+				lcd_goto(0xC0);
+				lcd_putch(c1+'0');
+				lcd_putch(c2+'0');
+				lcd_putch(0xDF);
+				lcd_puts("C");
+				lcd_goto(0x94);            
+				lcd_puts(umiddht);
+				lcd_goto(0xD4);
+				lcd_putch(c3+'0');
+				lcd_putch(c4+'0');
+				lcd_putch(0x25);
+			 
+				}
+			
+		
+    else {
+			lcd_clear();
+			lcd_goto(0x80);
+			lcd_puts("eroare");
+			lcd_goto(0xC0);
+			lcd_puts("fara raspuns");
+		}
+    __delay_ms(500);
+ }*/
+ 
+
+			 
+			 
+	 
+
+void afisarepag(void)
+ {
+	 unsigned k=0; 
+		
+		do{
+			
+		
+		
+		lcd_goto(0x86);
+		lcd_puts(pag1);
+		
+		lm35();
+			k++;
+		}while(k<=50);
+		 
+		__delay_ms(100);
+		lcd_clear();
+		k=0;
+		do{
+			
+		
+		__delay_ms(10);
+		lcd_goto(0x86);
+		lcd_puts(pag2);
+		luminozitate();
+			k++;
+		
+		}while(k<=50);
+		
+		lcd_clear();
+		 __delay_ms(10);
+		lcd_goto(0x86);
+		lcd_puts(pag3); 
+		lcd_goto(0xC2);
+		//lcd_puts(tempdht);
+		lcd_goto(0x96);
+		//lcd_puts(umiddht);
+		__delay_ms(5000);
+	}
+
+void interrupt etti(void)	// ajung aici la fiecare 78*128us=~10ms
+{       
+	if(TMR0IF)				// daca flagul TMR0IF=1
+	{
+		 TMR0IF = 0;   		// obligatoriu - sterg flagul Timerului care a generat intreruperea
+		 TMR0 = 178;  		// 
+		 LED2 = !LED2; 		// 
+	}
+}
