@@ -92,16 +92,16 @@ void main(void)
 } 
 unsigned int Citeste_ADC(unsigned char canal)
 {
-   if(canal > 13)//an13 e ultimul pin analog
+   if(canal > 13)
 		return 0;
-    ADCON0 &= 0xC3; //curat adcon0, setez adon on
-    ADCON0 |= (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
+    ADCON0 &= 0xC3;
+    ADCON0 |= (canal << 2); 
     
-    __delay_ms(100);//delay pt AD sa citeasca corect
+    __delay_ms(100);
         
     GO_nDONE = 1;
-    while(GO_nDONE);//pauza pana cand A/D termina conversia
-    return ((ADRESH<<8)+ADRESL);//returnez valoarea convertita
+    while(GO_nDONE);
+    return ((ADRESH<<8)+ADRESL);
     
 }
 
