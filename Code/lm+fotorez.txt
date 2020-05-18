@@ -6,24 +6,20 @@
 __PROG_CONFIG(1,0x20D4); 	// config. uC 
 __PROG_CONFIG(2,0x0000); 	// config. uC 
 #define _XTAL_FREQ 8000000
-#define LED1 RB0 
 #define LED2 RB1
 #define butoninc RC2
 #define butonalarm RC1
 #define butontimp RC0
-#define datadht RE1 
+#define dhtpin RE1
+#define dhtpin_dir  TRISE1
 
 
-char *logo  = (char *) "AEMC - proiect LCD";
-char *logo1 = (char *) "linia_1";
-char *logo2 = (char *) "linia_2";
-char *logo3 = (char *) "linia_3";
-char *logo4 = (char *) "linia_4";
+
 char *tempanalog = (char *) " Temperatura LM35";
 char *luminanalog = (char *) "luminozitate";
 char *tempdht = (char *) "temp dht";
 char *umiddht = (char *) "umid dht";
-
+char *lum = (char *) "lumeni/m^2";
 
 
 void init_uC(void); 
@@ -36,13 +32,13 @@ void lcd_clear(void);
 void lm35(void);
 void luminozitate(void);
 void initializare_dht(void);
-void raspuns_dht(void);
-unsigned char citire_dht(void);
+unsigned short raspuns_dht(void);
+unsigned short citire_dht(unsigned short *);
 void afisare_dht(void);
-//void afisare_diacritice(unsigned char diacritic_afisat, unsigned char linia);
 unsigned int Citeste_ADC(unsigned char canal);
-//float conversietemp(float volt, int adctemp);
-
+char temperatura[]="temperatura = 00.0C";
+char umiditate[]="umiditate = 00.0%";
+unsigned short tempbyte1, tempbyte2, umidbyte1, umidbyte2, suma;
 void main(void)
  { 
 	
@@ -75,12 +71,15 @@ void main(void)
 	OSCCON 	= 0x71;			// setez Osc. intern uC de 8MHz // pag. 64
 	ADCON0 = 0b10000001;
 	ADCON1 = 0x80;
+	T1CON=0x10;
+	TMR1H=0;
+	TMR1L=0;
     TRISA = 0x01;//RA7,RA6,RA0 intrare
     TRISB = 0x00;//RB5,RB0 intrare
     TRISC = 0x00;//RB3,2,1 intrare(butoane)
     TRISD = 0x00;
-    TRISE = 0x01;
-    ANSEL = 0b00100001;
+    TRISE = 0b00000011;
+    ANSEL = 0b00000001;
     ANSELH = 0x00;
 	PORTB = 0b00000000;	// initializez PORTB cu valori de 0 logic
 	OPTION_REG = 0b00000111;// Frecv. intrare T0 = Frecv. Osc./4 (=8MHz/4) = 2MHz
@@ -119,20 +118,19 @@ void lm35(void)
 		 c3=(temp1/10)%10;
 		 c4=(temp1/1)%10;
 		 
+		__delay_ms(2);
+		 lcd_goto(0xC1);
 		 __delay_ms(2);
-		 lcd_goto(0x80);
+		lcd_puts(tempanalog);
 		 __delay_ms(2);
-		 lcd_puts(tempanalog);
-		 __delay_ms(2);
-		 lcd_goto(0xC0);
+		 lcd_goto(0x99);
 		  __delay_ms(2);
 		 lcd_putch(c1+'0');
 		  __delay_ms(2);
 		 lcd_putch(c2+'0');
 		  __delay_ms(2);
-		 lcd_puts(".");
-		  __delay_ms(2);
 		 lcd_putch(c3+'0');
+		 lcd_puts(".");
 		  __delay_ms(2);;
 		lcd_putch(c4+'0');
 		 __delay_ms(2);
@@ -142,23 +140,25 @@ void lm35(void)
 }
 void luminozitate(void)
 {
-		 int adc,c1,c2,c3,c4,intensitate1;
-		 float lv,lum,ressenz,intensitate;
+		 int adc,c0,c1,c2,c3,c4;
+		  float r1=10.0,curent;
+		 float lv,lum,ressenz;
 		 adc=Citeste_ADC(0);
 		 lv=adc*4.882;
-		 ressenz=pow(10,7.098)*pow(lv,(-1.405));
-		 intensitate=500.0/ressenz;
-		 intensitate1=intensitate*100;
-		 c1=(intensitate1/1000)%10;
-		 c2=(intensitate1/100)%10;
-		 c3=(intensitate1/10)%10;
-		 c4=(+intensitate1/1)%10;
+		 lv/=1000;
+		  ressenz=(5-lv)/(lv/r1);
+		  ressenz=(pow(10,5.07)*pow(ressenz,(-0.9)))/10;
+		  int result=(int)ressenz;
+		 c1=(result/1000)%10;
+		 c2=(result/100)%10;
+		 c3=(result/10)%10;
+		 c4=(result/1)%10;
 		  __delay_ms(2);
-		 lcd_goto(0x94);
+		 lcd_goto(0xC4);
 		 __delay_ms(2);
 		 lcd_puts(luminanalog);
 		 __delay_ms(2);
-		 lcd_goto(0xD4);
+		 lcd_goto(0x98);
 		  __delay_ms(2);
 		 lcd_putch(c1+'0');
 		  __delay_ms(2);
@@ -167,100 +167,120 @@ void luminozitate(void)
 		 lcd_puts(".");
 		  __delay_ms(2);
 		 lcd_putch(c3+'0');
-		  __delay_ms(2);
+		   __delay_ms(2);
 		lcd_putch(c4+'0');
+		__delay_ms(2);
+		lcd_puts("lumeni/m^2");
 }
 
 
 void initializare_dht(void)
 {
-		 TRISE=0x00;
-		 datadht = 0;
-		 __delay_ms(20);
-		 TRISE=0x02;
-		 
-		 __delay_ms(20);
-		 RE1=1;
+		dhtpin_dir = 0;
+		 dhtpin = 0;
+		 __delay_ms(25);
+		 dhtpin = 1;
+		 __delay_us(25);
+		 dhtpin_dir = 1;
 }
 
 
-void raspuns_dht(void)
+unsigned short raspuns_dht()
 {
-	unsigned char verifbit = 0;
-	__delay_ms(40);
-	if(datadht == 0)
-	{
-		__delay_ms(10);
-		if(datadht == 1)
-		{
-			verifbit = 1;
-		}
-			__delay_ms(6);
-		}
-		
+	TMR1H = 0;
+	TMR1L = 0;
+	TMR1ON = 1;
+	while(!dhtpin && TMR1L < 100);
+	if(TMR1L > 99)
+		return 0;
+	else {    TMR1H = 0; 
+		  TMR1L = 0;
+		  while(dhtpin && TMR1L < 100);
+		  if(TMR1L > 99)
+		  {
+		  	return 0;
+		  }
+		  else
+		  {
+		  	return 1;
+		  }
+             }
 }
-unsigned char citire_dht(void)
- { 
-	 char info, i;
-			 for(i = 0; i < 8; i++)
+unsigned short citire_dht(unsigned short* dhtdata)
+{ 
+	 short i;
+	 *dhtdata = 0;
+	 
+			 for( int i = 0; i < 8; i++)
 			 {
-				 while(!datadht);
-				 __delay_ms(5);
-				 if(datadht == 0)
+				 TMR1H=0;
+				 TMR1L=0;
+				 while(!dhtpin)
 				 {
-					 info &= ~(1<<(7-i));//curata bit
+				    if(TMR1L > 100)
+				    {
+				       return 1;
+				    }
+				    TMR1H = 0;
+				    TMR1L = 0;
 				 }
-				 else
-				 {
-					 info |= (1<<(7-i));//seteaza bit
-					 while(datadht);
-					 }
+				 while(dhtpin)
+				 if(TMR1L > 100)
+				    if(TMR1L > 100)
+				    {
+				       return 1;
 				 }
-				 return info;
-}
+				 if(TMR1L > 50)
+				    *dhtdata |=(1<<(7-i));
+			      }
+				 return 0;
+				 
+} 
 
 
 void afisare_dht(void)
 {
-	unsigned char datadht, tempbyte1, tempbyte2, umidbyte1, umidbyte2;
-	unsigned char tempdht, rh, suma;
-    initializare_dht();
-    raspuns_dht();
-    if (datadht == 1)
+	initializare_dht();                
+	    if(raspuns_dht()) 
+	    {
+	    	if(citire_dht(&umidbyte1) || citire_dht(&umidbyte2) || citire_dht(&tempbyte1) || citire_dht(&tempbyte2) || citire_dht(&suma)) 
 		{
-			umidbyte1 = citire_dht();
-			umidbyte2 = citire_dht();
-			tempbyte1 = citire_dht();
-			tempbyte2 = citire_dht();
-			suma = citire_dht();
-			if (suma == ((umidbyte1+umidbyte2+tempbyte1+tempbyte2) & 0XFF))
-				{
-					tempdht = tempbyte1;
-					rh = umidbyte1;                        
-					lcd_goto(0x80);                   
-					lcd_puts(tempdht);
-					lcd_putch('0' + ((tempdht / 10) % 10));
-					lcd_putch('0' +((tempdht % 10)));
-					lcd_putch(0xDF);
-					lcd_puts("C");
-					lcd_goto(0xC0);            
-					lcd_puts(umiddht);
-					lcd_putch('0' + ((rh / 10) % 10));
-					lcd_putch('0' + (rh % 10));
-					lcd_putch("% ");
-				}
-			else{
-					lcd_puts("eroare la suma");
-				}
-		}
-    else {
 			lcd_clear();
 			lcd_goto(0x80);
-			lcd_puts("eroare");
-			lcd_goto(0xC0);
-			lcd_puts("fara raspuns");
+			lcd_puts((char *) "eroare la citirea datelor");
 		}
-    __delay_ms(1000);
+		else {
+			if(suma == ((umidbyte1 + umidbyte2 + tempbyte1 + tempbyte2) & 0xFF))
+				{
+					temperatura[14]  = (tempbyte1/10  + 48);
+			      		temperatura[15]  = (tempbyte1%10  + 48);
+			      		temperatura[17] = (tempbyte2/10  + 48);
+			      		umiditate[12]     = (umidbyte1/10 + 48);
+			      		umiditate[13]     = (umidbyte1%10 + 48);
+			      		umiditate[15]    = (umidbyte2/10 + 48);
+			      		temperatura[18] = 223;                      
+			      		lcd_goto(0xC2);
+			      		lcd_puts(temperatura);
+			      		lcd_goto(0x96);
+			      		lcd_puts(umiditate);
+         
+				  }
+			else {
+				lcd_clear();
+			      	lcd_goto(0x80);
+			      	lcd_puts((char*) "verifica suma");
+				}
+			}
+		}
+		else {
+			lcd_goto(0x80);
+		     	lcd_puts((char*) "Niciun");
+		     	lcd_goto(0xC0);
+		     	lcd_puts((char*) "raspuns");
+		     }
+	TMR1ON = 0;
+	__delay_ms(1000);
+	
  }
 
 			 
