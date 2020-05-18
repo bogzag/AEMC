@@ -98,16 +98,16 @@ void interrupt etti(void)	// ajung aici la fiecare 78*128us=~10ms
 }
 unsigned int Citeste_ADC(unsigned char canal)
 {
-   if(canal > 13)//an13 e ultimul pin analog
+   if(canal > 13)
 		return 0;
-    ADCON0 &= 0xC3; //curat adcon0, setez adon on
-    ADCON0 |= (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
+    ADCON0 &= 0xC3; 
+    ADCON0 |= (canal << 2); 
     
-    __delay_ms(100);//delay pt AD sa citeasca corect
+    __delay_ms(100);
         
     GO_nDONE = 1;
-    while(GO_nDONE);//pauza pana cand A/D termina conversia
-    return ((ADRESH<<8)+ADRESL);//returnez valoarea convertita
+    while(GO_nDONE);
+    return ((ADRESH<<8)+ADRESL);
     
 }
 void senzumid(void)
@@ -130,9 +130,9 @@ void senzumid(void)
 	float imp;
 	imp = Citeste_ADC(0);
 	 imp=imp*4.882;
-	imp=imp/1000.0;//lucrez in V si ohmi
-	imp = (10.0*(5-imp)/imp);//aflu rez pe senzor
-	 if(temptabel==0)//daca rezistenta din tabel e 0
+	imp=imp/1000.0;
+	imp = (10.0*(5-imp)/imp);
+	 if(temptabel==0)
 	 {
 		 umidtabel=2;
 	 }
