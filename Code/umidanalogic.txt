@@ -1,0 +1,168 @@
+#include <xc.h>
+
+__PROG_CONFIG(1,0x20D4); 	// config. uC 
+__PROG_CONFIG(2,0x0000); 	// config. uC 
+
+#define LED1 RB0 
+#define LED2 RB1
+#define _XTAL_FREQ 8000000
+
+
+
+char *stringumid = (char *) "umiditate analogica";
+
+void init_uC(void); 
+void interrupt etti(void); 	// functie de intreruperi globala ptr. TOATE intreruperile de pe un 
+void init_LCD(void);
+void lcd_goto(unsigned char pos);
+void lcd_puts(char * s);
+void lcd_putch(char c);
+void senzumid(void);
+unsigned int Citeste_ADC(unsigned char canal);
+
+
+
+
+int temperatura[] = {0,5,10,15,20,25,30,35,40,45,50}; 
+const double matricetabel[11][15] = {
+	{0, 0, 12000, 5200, 2800, 720, 384, 200, 108, 64, 38, 23, 16 ,10.2,6.9},
+	{0, 19800, 9800, 4700, 2000, 510, 271, 149, 82, 48, 29, 18, 12, 8.2, 5.4},
+	{0, 16000, 7200, 3200, 1400, 386, 211, 118, 64, 38, 24, 15, 10.2, 6.9, 4.7},
+	{21000, 10500, 5100, 2350, 1050, 287, 159, 91, 51, 31, 19, 12, 8.1, 5.5, 4.1},
+	{13500, 6700, 3300, 1800, 840, 216, 123, 70, 40, 25, 16, 10, 7.2, 4.7, 3.2},
+	{9800, 4803, 2500, 1300, 630, 166, 95, 55, 31, 20, 13, 8.5, 5.7, 4.0, 2.8},
+	{8000, 3900, 2000, 980, 470, 131, 77, 44, 25, 17, 10.5, 7.2, 5.0, 3.6, 2.5},
+	{6300, 3100, 1500, 750, 385, 104, 63, 38, 21, 13, 9, 6.4, 4.4, 3.2, 2.3},
+	{4600, 2300, 1100, 575, 282, 80, 52, 32, 17, 11, 8.2, 5.8, 4.0, 2.9, 2.1},
+	{3800, 1850, 900, 430, 210, 66, 45, 30, 14, 9, 7.1, 5.0, 3.3, 2.4, 1.8},
+	{3200, 1550, 750, 350, 170, 51, 38, 24, 12, 8, 6.0, 4.1, 2.9, 2.0, 1.5},
+     
+	
+	
+};
+int umid[]={20,25,30,35,40,45,50,55,60,65,70,75,80,85,90}; 
+void main(void)
+ {
+	
+	init_uC();
+	init_LCD();
+
+	 
+   
+   
+	
+	 
+	while (1)
+	  {
+	     senzumid();
+	    
+	   
+	   
+	}
+ }
+ 
+ void init_uC (void) 
+{ 
+	OSCCON 	= 0x71;	  // setez Osc. intern uC de 8MHz // pag. 64
+	ANSELH = 0x00;
+	ADCON0 = 0b10000001;
+	ADCON1 = 0x80;
+	T1CON=0x10;
+	TMR1H=0;
+	TMR1L=0;
+	TRISA = 0x01;//RA7,RA6,RA0 intrare
+	TRISB = 0x00;//RB5,RB0 intrare
+	TRISC = 0x01;//RB3,2,1 intrare(butoane)
+	TRISD = 0x00;
+	TRISE = 0b00000011;
+	ANSEL = 0b00000001;
+	
+	PORTB = 0b00000000;	// initializez PORTB cu valori de 0 logic
+	OPTION_REG = 0b00000111;// Frecv. intrare T0 = Frecv. Osc./4 (=8MHz/4) = 2MHz
+							// prescaler=256 => Frecv. T0 = 2MHz/256 = KHz (sau T=128us)
+	TMR0IF 	= 0;			// 
+	TMR0 	= 178;	  		// porneste numararea de la valoarea 178; pana la maxim (255) 
+	TMR0IE 	= 1;    		// activez intreruperea ptr. T0
+	GIE 	= 1;       		// activez Global intreruperile
+	
+} 
+
+void interrupt etti(void)	// ajung aici la fiecare 78*128us=~10ms
+{       
+	if(TMR0IF)				// daca flagul TMR0IF=1
+	{
+		 TMR0IF = 0;   		// obligatoriu - sterg flagul Timerului care a generat intreruperea
+		 TMR0 = 178;  		// 
+		 LED2 = !LED2; 		// 
+	}
+}
+unsigned int Citeste_ADC(unsigned char canal)
+{
+   if(canal > 13)//an13 e ultimul pin analog
+		return 0;
+    ADCON0 &= 0xC3; //curat adcon0, setez adon on
+    ADCON0 |= (canal << 2); //selectam canal ADC, 2 biti ca sa ajungem pe bitii canalului
+    
+    __delay_ms(100);//delay pt AD sa citeasca corect
+        
+    GO_nDONE = 1;
+    while(GO_nDONE);//pauza pana cand A/D termina conversia
+    return ((ADRESH<<8)+ADRESL);//returnez valoarea convertita
+    
+}
+void senzumid(void)
+{ 
+			
+		int temptabel = 1, umidtabel = 0;
+	 int c1,c2,c0;
+	 float templm;
+	 templm = Citeste_ADC(5);
+	 templm = templm*4.882;
+	templm=templm/10.0;
+	int i;
+	 for(i=0;i<=10;i++)
+	 { if(templm>=temperatura[i])
+	    {
+		 
+		 temptabel++;
+	    }
+	 }
+	float imp;
+	imp = Citeste_ADC(0);
+	 imp=imp*4.882;
+	imp=imp/1000.0;//lucrez in V si ohmi
+	imp = (10.0*(5-imp)/imp);//aflu rez pe senzor
+	 if(temptabel==0)//daca rezistenta din tabel e 0
+	 {
+		 umidtabel=2;
+	 }
+	 if(temptabel == 1)
+	 {
+	    umidtabel=1;
+	 }
+	 if(temptabel == 2)
+	 {
+	    umidtabel=1;
+	 }
+	 
+	 while(imp<=matricetabel[temptabel][umidtabel])
+	 {
+		 umidtabel++;
+	 }
+	 
+	 int val=(int)umid[umidtabel];     
+		__delay_ms(2);
+	 lcd_goto(0x80);
+	 __delay_ms(2);
+	 lcd_puts(stringumid);
+	 lcd_goto(0xC0);
+	 lcd_putch((val/10)%10+'0');
+	 __delay_ms(2);
+	 lcd_putch((val)%10+'0');
+	 __delay_ms(2); 
+	 lcd_putch('%');
+   
+	
+	 
+	  
+   }
